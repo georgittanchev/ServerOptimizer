@@ -10,41 +10,55 @@
 if [[ -L "$0" ]]; then
   # If running through a symlink, get the real path
   SCRIPT_PATH="$(readlink -f "$0")"
-  SCRIPT_DIR="$(dirname "$SCRIPT_PATH")"
+  BASE_DIR="$(dirname "$SCRIPT_PATH")"
+  echo "Running through symlink. SCRIPT_PATH=$SCRIPT_PATH, BASE_DIR=$BASE_DIR"
 else
   # If running directly
-  SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  echo "Running directly. BASE_DIR=$BASE_DIR"
 fi
 
-# Check and handle special cases
-if [[ "$SCRIPT_DIR" == "/usr/local/bin" ]]; then
-  SCRIPT_DIR="/usr/local/server-optimizer"
-elif [[ "$SCRIPT_DIR" == "/usr/local/server-optimizer/lib" ]]; then
-  SCRIPT_DIR="/usr/local/server-optimizer"
+# Special cases handling
+if [[ "$BASE_DIR" == "/usr/local/bin" ]]; then
+  BASE_DIR="/usr/local/server-optimizer"
+  echo "Special case: changed to $BASE_DIR"
 fi
 
-CONFIG_FILE="${SCRIPT_DIR}/config/default.conf"
+echo "Final BASE_DIR=$BASE_DIR"
+
+# Fixed paths using absolute locations
+MODULES_DIR="${BASE_DIR}/modules"
+LIB_DIR="${BASE_DIR}/lib"
+CONFIG_FILE="${BASE_DIR}/config/default.conf"
 VERSION="1.0.0"
 
-# Source required libraries
-if [[ -f "${SCRIPT_DIR}/lib/logging.sh" ]]; then
-  source "${SCRIPT_DIR}/lib/logging.sh"
+# Set global flags for libraries
+export LOGGING_LOADED=false
+export UTILS_LOADED=false
+export UI_LOADED=false
+
+# Source required libraries with absolute paths
+if [[ -f "${LIB_DIR}/logging.sh" ]]; then
+  source "${LIB_DIR}/logging.sh"
+  export LOGGING_LOADED=true
 else
-  echo "ERROR: Required library not found: ${SCRIPT_DIR}/lib/logging.sh"
+  echo "ERROR: Required library not found: ${LIB_DIR}/logging.sh"
   exit 1
 fi
 
-if [[ -f "${SCRIPT_DIR}/lib/utils.sh" ]]; then
-  source "${SCRIPT_DIR}/lib/utils.sh"
+if [[ -f "${LIB_DIR}/utils.sh" ]]; then
+  source "${LIB_DIR}/utils.sh"
+  export UTILS_LOADED=true
 else
-  echo "ERROR: Required library not found: ${SCRIPT_DIR}/lib/utils.sh"
+  echo "ERROR: Required library not found: ${LIB_DIR}/utils.sh"
   exit 1
 fi
 
-if [[ -f "${SCRIPT_DIR}/lib/ui.sh" ]]; then
-  source "${SCRIPT_DIR}/lib/ui.sh"
+if [[ -f "${LIB_DIR}/ui.sh" ]]; then
+  source "${LIB_DIR}/ui.sh"
+  export UI_LOADED=true
 else
-  echo "ERROR: Required library not found: ${SCRIPT_DIR}/lib/ui.sh"
+  echo "ERROR: Required library not found: ${LIB_DIR}/ui.sh"
   exit 1
 fi
 
@@ -140,14 +154,27 @@ load_config() {
 load_modules() {
   log_info "Loading modules..."
   
+  echo "BASE_DIR when loading modules: $BASE_DIR"
+  echo "Looking for modules in: ${MODULES_DIR}"
+  ls -la "${MODULES_DIR}" || echo "Directory not found or empty"
+  
+  # Export needed variables for modules
+  export SERVER_TYPE
+  export NON_INTERACTIVE
+  export CONFIG_FILE
+  export BACKUP_DIR
+  
   for module_script in "${MODULE_SCRIPTS[@]}"; do
-    local module_path="${SCRIPT_DIR}/modules/${module_script}"
+    local module_path="${MODULES_DIR}/${module_script}"
+    echo "Checking for module at: $module_path"
     if [[ -f "$module_path" ]]; then
       log_debug "Loading module: $module_script"
+      echo "Found module: $module_script"
       # shellcheck source=/dev/null
       source "$module_path"
     else
       log_error "Module not found: $module_script"
+      echo "ERROR: Module not found at: $module_path"
       exit 1
     fi
   done
@@ -202,6 +229,8 @@ parse_arguments() {
       --modules)
         if [[ -n "$2" ]]; then
           module_selections="$2"
+          NON_INTERACTIVE=true
+          log_info "Modules specified via command line: $module_selections"
           shift 2
         else
           log_error "Modules not specified"
@@ -241,10 +270,12 @@ select_modules() {
   if [[ "$NON_INTERACTIVE" == "true" && -n "$module_selections" ]]; then
     # Parse module selections from command line arguments
     selected_modules=()
+    log_info "Parsing module selections: $module_selections"
     IFS=',' read -ra selections <<< "$module_selections"
     for selection in "${selections[@]}"; do
       if [[ "$selection" =~ ^[0-9]+$ ]] && [ "$selection" -ge 1 ] && [ "$selection" -le "${#MODULES[@]}" ]; then
         selected_modules+=("$((selection-1))")
+        log_info "Added module: ${MODULES[$((selection-1))]}"
       else
         log_warn "Invalid module selection: $selection. Ignoring."
       fi
@@ -252,10 +283,12 @@ select_modules() {
   elif [[ "$NON_INTERACTIVE" == "true" ]]; then
     # Use module flags from config to determine which modules to run
     selected_modules=()
+    log_info "Using module flags from configuration"
     for ((i=0; i<${#MODULE_FLAGS[@]}; i++)); do
       flag_value="${!MODULE_FLAGS[$i]}"
       if [[ "$flag_value" == "true" ]]; then
         selected_modules+=("$i")
+        log_info "Added module from config: ${MODULES[$i]}"
       fi
     done
   else
@@ -334,6 +367,7 @@ execute_modules() {
   local current_module=0
   
   print_header "Executing Optimization Modules"
+  log_info "Starting execution of $total_modules modules"
   
   # Create backup directory if it doesn't exist
   if [[ ! -d "$BACKUP_DIR" ]]; then
@@ -351,10 +385,11 @@ execute_modules() {
     
     # Display progress
     print_section "Module $current_module/$total_modules: $module_name"
-    log_info "Executing module: $module_name"
+    log_info "Executing module: $module_name (function: $module_function)"
     
     # Execute the module function
     if type "$module_function" &>/dev/null; then
+      log_debug "Module function $module_function exists, executing..."
       if "$module_function"; then
         print_success "Module executed successfully: $module_name"
         log_info "Module executed successfully: $module_name"
@@ -391,6 +426,17 @@ main() {
   
   # Load configuration from file
   load_config
+  
+  # Ensure log directory exists
+  local log_dir
+  log_dir=$(dirname "$LOG_FILE")
+  if [[ ! -d "$log_dir" ]]; then
+    mkdir -p "$log_dir" 2>/dev/null
+    if [[ $? -ne 0 ]]; then
+      echo "ERROR: Unable to create log directory at $log_dir"
+      exit 1
+    fi
+  fi
   
   # Initialize logging
   init_logging "$LOG_FILE" "$LOG_LEVEL"
