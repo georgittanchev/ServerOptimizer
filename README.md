@@ -1,5 +1,11 @@
 # Server Optimizer
 
+[![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.0-4baaaa.svg)](docs/CODE_OF_CONDUCT.md)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Platform](https://img.shields.io/badge/Platform-cPanel%2FWHM-orange.svg)]()
+[![Bash](https://img.shields.io/badge/Language-Bash-blue.svg)]()
+[![Version](https://img.shields.io/badge/Version-1.0.0-brightgreen.svg)]()
+
 A comprehensive tool for optimizing cPanel servers for better performance and security.
 
 ## Overview
