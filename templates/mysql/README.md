@@ -22,10 +22,11 @@ The server types are based on Linode's pricing tiers as defined at [Linode Prici
 
 ## Usage
 
-These templates are used by the MySQL optimization module. If you want to update these templates:
+These templates are used by the MySQL optimization module. You have two options for working with these templates:
 
-1. Edit the files directly
-2. Run `download_templates.sh` to fetch fresh versions from the source
+1. **Use Default Templates**: The script will automatically use these pre-configured templates based on your server type.
+
+2. **Customize Templates**: You can edit these template files directly to customize MySQL settings for your specific needs. Note that running `download_templates.sh` will overwrite any customizations with fresh templates from the source.
 
 ## File Naming Convention
 
