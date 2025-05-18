@@ -1,7 +1,6 @@
 # MySQL configuration for VPS1 server type
 # === Optimized my.cnf configuration for MySQL/MariaDB (on cPanel/WHM servers) ===
 #
-# by FastComet
 
 [mysql]
 port                            = 3306
