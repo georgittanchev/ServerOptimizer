@@ -1,17 +1,30 @@
 #!/bin/bash
 #
 # Module: WordPress Optimization
-# Description: Functions for configuring WordPress to use Redis
+# Description: Functions for optimizing WordPress performance
 #
-# This module contains functions for optimizing WordPress installations
-# by configuring Redis caching integration.
+# This module contains functions for configuring WordPress
+# to use Redis for caching and session storage.
 
-# Source required libraries
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-LIB_DIR="$(dirname "$SCRIPT_DIR")/lib"
-source "$LIB_DIR/logging.sh"
-source "$LIB_DIR/utils.sh"
-source "$LIB_DIR/ui.sh"
+# Source required libraries without changing globals
+MODULE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+MODULE_LIB_DIR="$(dirname "$MODULE_DIR")/lib"
+
+# Only source libraries if they haven't been loaded already
+if [[ -z "$LOGGING_LOADED" ]]; then
+  source "$MODULE_LIB_DIR/logging.sh"
+  LOGGING_LOADED=true
+fi
+
+if [[ -z "$UTILS_LOADED" ]]; then
+  source "$MODULE_LIB_DIR/utils.sh"
+  UTILS_LOADED=true
+fi
+
+if [[ -z "$UI_LOADED" ]]; then
+  source "$MODULE_LIB_DIR/ui.sh"
+  UI_LOADED=true
+fi
 
 # Default settings that can be overridden in config
 REDIS_DATABASE=0
@@ -104,11 +117,11 @@ configure_wordpress_redis() {
       if [[ $(wp redis status --allow-root --path="$wp_path" 2>&1) == *"already enabled"* ]]; then
         log_info "Redis already enabled for $wp_path. Continuing..."
         print_info "Redis already enabled for this site. Continuing..."
-      } else {
+      else
         log_error "Failed to enable Redis at $wp_path. Continuing with next site..."
         print_error "Failed to enable Redis. Continuing with next site..."
         continue
-      }
+      fi
     }
     
     log_success "Successfully configured Redis for $wp_path"
@@ -124,18 +137,6 @@ configure_wordpress_redis() {
 
 # If the script is executed directly, run the main function
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
-  # Source required libraries (in case we're running standalone)
-  if [ -z "$LIB_DIR" ]; then
-    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    LIB_DIR="$(dirname "$SCRIPT_DIR")/lib"
-    source "$LIB_DIR/logging.sh"
-    source "$LIB_DIR/utils.sh"
-    source "$LIB_DIR/ui.sh"
-    
-    # Initialize logging
-    init_logging "/var/log/server-optimizer.log" "INFO"
-  fi
-  
   # Run the function
   configure_wordpress_redis
 fi
