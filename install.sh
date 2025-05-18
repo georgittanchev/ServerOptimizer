@@ -105,6 +105,43 @@ find "$INSTALL_DIR/lib" -name "*.sh" -exec chmod +x {} \;
 mkdir -p /var/log/server-optimizer
 chmod 755 /var/log/server-optimizer
 
+# Ensure logging.sh has the log_success function
+echo "Verifying logging functions..."
+LOGGING_FILE="$INSTALL_DIR/lib/logging.sh"
+if [ -f "$LOGGING_FILE" ]; then
+  if ! grep -q "log_success()" "$LOGGING_FILE"; then
+    echo "Adding log_success function to logging.sh..."
+    # Add SUCCESS to log levels if not present
+    if ! grep -q "\[SUCCESS\]" "$LOGGING_FILE"; then
+      sed -i 's/LOG_LEVELS=(\[DEBUG\]=0 \[INFO\]=1 \[WARN\]=2 \[ERROR\]=3 \[FATAL\]=4)/LOG_LEVELS=([DEBUG]=0 [INFO]=1 [WARN]=2 [ERROR]=3 [FATAL]=4 [SUCCESS]=1)/' "$LOGGING_FILE"
+    fi
+    
+    # Add log_success function before log_fatal_exit
+    if grep -q "log_fatal_exit()" "$LOGGING_FILE"; then
+      sed -i '/log_fatal_exit()/i\
+# Log a success message\
+log_success() {\
+  _log "SUCCESS" "$1"\
+}\
+' "$LOGGING_FILE"
+    else
+      # If log_fatal_exit not found, add after log_fatal
+      sed -i '/log_fatal()/a\
+\
+# Log a success message\
+log_success() {\
+  _log "SUCCESS" "$1"\
+}\
+' "$LOGGING_FILE"
+    fi
+    echo "  ✓ log_success function added"
+  else
+    echo "  ✓ log_success function exists"
+  fi
+else
+  echo "  ✗ logging.sh not found!"
+fi
+
 # Handle MySQL templates
 TEMPLATE_DIR="$INSTALL_DIR/templates/mysql"
 
