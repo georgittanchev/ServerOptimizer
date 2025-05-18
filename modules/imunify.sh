@@ -1,17 +1,30 @@
 #!/bin/bash
 #
-# Module: Imunify Optimization
+# Module: Imunify360 Optimization
 # Description: Functions for optimizing Imunify360 settings
 #
-# This module contains functions for configuring and optimizing
-# Imunify360 on cPanel servers.
+# This module contains functions for optimizing Imunify360
+# for better performance and security.
 
-# Source required libraries
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-LIB_DIR="$(dirname "$SCRIPT_DIR")/lib"
-source "$LIB_DIR/logging.sh"
-source "$LIB_DIR/utils.sh"
-source "$LIB_DIR/ui.sh"
+# Source required libraries without changing globals
+MODULE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+MODULE_LIB_DIR="$(dirname "$MODULE_DIR")/lib"
+
+# Only source libraries if they haven't been loaded already
+if [[ -z "$LOGGING_LOADED" ]]; then
+  source "$MODULE_LIB_DIR/logging.sh"
+  LOGGING_LOADED=true
+fi
+
+if [[ -z "$UTILS_LOADED" ]]; then
+  source "$MODULE_LIB_DIR/utils.sh"
+  UTILS_LOADED=true
+fi
+
+if [[ -z "$UI_LOADED" ]]; then
+  source "$MODULE_LIB_DIR/ui.sh"
+  UI_LOADED=true
+fi
 
 # Function to check if Imunify360 is installed
 is_imunify_installed() {
@@ -116,12 +129,12 @@ optimize_imunify360() {
 # If the script is executed directly, run the main function
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
   # Source required libraries (in case we're running standalone)
-  if [ -z "$LIB_DIR" ]; then
-    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    LIB_DIR="$(dirname "$SCRIPT_DIR")/lib"
-    source "$LIB_DIR/logging.sh"
-    source "$LIB_DIR/utils.sh"
-    source "$LIB_DIR/ui.sh"
+  if [ -z "$MODULE_LIB_DIR" ]; then
+    MODULE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    MODULE_LIB_DIR="$(dirname "$MODULE_DIR")/lib"
+    source "$MODULE_LIB_DIR/logging.sh"
+    source "$MODULE_LIB_DIR/utils.sh"
+    source "$MODULE_LIB_DIR/ui.sh"
     
     # Initialize logging
     init_logging "/var/log/server-optimizer.log" "INFO"

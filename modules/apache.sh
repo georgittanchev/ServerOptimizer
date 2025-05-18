@@ -6,12 +6,25 @@
 # This module contains functions for configuring Apache settings
 # and optimizing its performance.
 
-# Source required libraries
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-LIB_DIR="$(dirname "$SCRIPT_DIR")/lib"
-source "$LIB_DIR/logging.sh"
-source "$LIB_DIR/utils.sh"
-source "$LIB_DIR/ui.sh"
+# Source required libraries without changing globals
+MODULE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+MODULE_LIB_DIR="$(dirname "$MODULE_DIR")/lib"
+
+# Only source libraries if they haven't been loaded already
+if [[ -z "$LOGGING_LOADED" ]]; then
+  source "$MODULE_LIB_DIR/logging.sh"
+  LOGGING_LOADED=true
+fi
+
+if [[ -z "$UTILS_LOADED" ]]; then
+  source "$MODULE_LIB_DIR/utils.sh"
+  UTILS_LOADED=true
+fi
+
+if [[ -z "$UI_LOADED" ]]; then
+  source "$MODULE_LIB_DIR/ui.sh"
+  UI_LOADED=true
+fi
 
 # Helper function to convert MB to KB for Apache limits
 mb_to_kb() {
@@ -107,16 +120,16 @@ optimize_apache_settings() {
   
   # Backup original configuration
   if [ -f "$EA4_CONF" ]; then
-    backup_file "$EA4_CONF" || {
+    if ! backup_file "$EA4_CONF"; then
       log_error "Failed to backup $EA4_CONF"
       print_error "Failed to backup $EA4_CONF"
       return 1
-    }
+    fi
   else
     log_error "Error: ea4.conf not found at $EA4_CONF"
     print_error "Error: ea4.conf not found at $EA4_CONF"
     return 1
-  }
+  fi
 
   # Read server type from user input or use existing value
   if [ -z "$SERVER_TYPE" ]; then
@@ -442,18 +455,6 @@ optimize_apache_settings() {
 
 # If the script is executed directly, run the main functions
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
-  # Source required libraries (in case we're running standalone)
-  if [ -z "$LIB_DIR" ]; then
-    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    LIB_DIR="$(dirname "$SCRIPT_DIR")/lib"
-    source "$LIB_DIR/logging.sh"
-    source "$LIB_DIR/utils.sh"
-    source "$LIB_DIR/ui.sh"
-    
-    # Initialize logging
-    init_logging "/var/log/server-optimizer.log" "INFO"
-  fi
-  
   # Run the functions
   switch_apache_mpm
   optimize_apache_settings

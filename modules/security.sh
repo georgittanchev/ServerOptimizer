@@ -3,15 +3,28 @@
 # Module: Security Optimization
 # Description: Functions for enhancing server security
 #
-# This module contains functions for implementing security enhancements
-# such as bad bot blocking and other security measures.
+# This module contains functions for security hardening and
+# implementing security best practices.
 
-# Source required libraries
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-LIB_DIR="$(dirname "$SCRIPT_DIR")/lib"
-source "$LIB_DIR/logging.sh"
-source "$LIB_DIR/utils.sh"
-source "$LIB_DIR/ui.sh"
+# Source required libraries without changing globals
+MODULE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+MODULE_LIB_DIR="$(dirname "$MODULE_DIR")/lib"
+
+# Only source libraries if they haven't been loaded already
+if [[ -z "$LOGGING_LOADED" ]]; then
+  source "$MODULE_LIB_DIR/logging.sh"
+  LOGGING_LOADED=true
+fi
+
+if [[ -z "$UTILS_LOADED" ]]; then
+  source "$MODULE_LIB_DIR/utils.sh"
+  UTILS_LOADED=true
+fi
+
+if [[ -z "$UI_LOADED" ]]; then
+  source "$MODULE_LIB_DIR/ui.sh"
+  UI_LOADED=true
+fi
 
 # Function to implement bad bot blocker for Apache
 implement_bad_bot_blocker() {
@@ -217,12 +230,9 @@ implement_bad_bot_blocker() {
 # If the script is executed directly, run the main function
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
   # Source required libraries (in case this is being run standalone)
-  if [ -z "$LIB_DIR" ]; then
-    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    LIB_DIR="$(dirname "$SCRIPT_DIR")/lib"
-    source "$LIB_DIR/logging.sh"
-    source "$LIB_DIR/utils.sh"
-    source "$LIB_DIR/ui.sh"
+  if [ -z "$MODULE_LIB_DIR" ]; then
+    MODULE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    MODULE_LIB_DIR="$(dirname "$MODULE_DIR")/lib"
     
     # Initialize logging
     init_logging "/var/log/server-optimizer.log" "INFO"

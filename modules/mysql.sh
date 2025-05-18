@@ -6,15 +6,28 @@
 # This module contains functions for configuring MySQL/MariaDB
 # for optimal performance based on server resources.
 
-# Source required libraries
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-LIB_DIR="$(dirname "$SCRIPT_DIR")/lib"
-source "$LIB_DIR/logging.sh"
-source "$LIB_DIR/utils.sh"
-source "$LIB_DIR/ui.sh"
+# Source required libraries without changing globals
+MODULE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+MODULE_LIB_DIR="$(dirname "$MODULE_DIR")/lib"
+
+# Only source libraries if they haven't been loaded already
+if [[ -z "$LOGGING_LOADED" ]]; then
+  source "$MODULE_LIB_DIR/logging.sh"
+  LOGGING_LOADED=true
+fi
+
+if [[ -z "$UTILS_LOADED" ]]; then
+  source "$MODULE_LIB_DIR/utils.sh"
+  UTILS_LOADED=true
+fi
+
+if [[ -z "$UI_LOADED" ]]; then
+  source "$MODULE_LIB_DIR/ui.sh"
+  UI_LOADED=true
+fi
 
 # Path to MySQL configuration templates
-TEMPLATE_DIR="$(dirname "$SCRIPT_DIR")/templates/mysql"
+TEMPLATE_DIR="$(dirname "$MODULE_DIR")/templates/mysql"
 
 # Supported server types
 SUPPORTED_SERVER_TYPES=("VPS1" "VPS2" "VPS3" "VPS4" "VPS5" "DSCPU1" "DSCPU2" "DSCPU3" "DSCPU4" "DSCPU5")
@@ -196,18 +209,6 @@ configure_mysql() {
 
 # If the script is executed directly, run the main function
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
-  # Source required libraries (in case we're running standalone)
-  if [ -z "$LIB_DIR" ]; then
-    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    LIB_DIR="$(dirname "$SCRIPT_DIR")/lib"
-    source "$LIB_DIR/logging.sh"
-    source "$LIB_DIR/utils.sh"
-    source "$LIB_DIR/ui.sh"
-    
-    # Initialize logging
-    init_logging "/var/log/server-optimizer.log" "INFO"
-  fi
-  
   # Run the function
   configure_mysql
 fi

@@ -6,12 +6,25 @@
 # This module contains functions for installing and optimizing LSAPI
 # for improved PHP performance in cPanel environments.
 
-# Source required libraries
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-LIB_DIR="$(dirname "$SCRIPT_DIR")/lib"
-source "$LIB_DIR/logging.sh"
-source "$LIB_DIR/utils.sh"
-source "$LIB_DIR/ui.sh"
+# Source required libraries without changing globals
+MODULE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+MODULE_LIB_DIR="$(dirname "$MODULE_DIR")/lib"
+
+# Only source libraries if they haven't been loaded already
+if [[ -z "$LOGGING_LOADED" ]]; then
+  source "$MODULE_LIB_DIR/logging.sh"
+  LOGGING_LOADED=true
+fi
+
+if [[ -z "$UTILS_LOADED" ]]; then
+  source "$MODULE_LIB_DIR/utils.sh"
+  UTILS_LOADED=true
+fi
+
+if [[ -z "$UI_LOADED" ]]; then
+  source "$MODULE_LIB_DIR/ui.sh"
+  UI_LOADED=true
+fi
 
 # Function to analyze PHP memory requirements across domains
 analyze_php_memory_requirements() {
@@ -495,12 +508,12 @@ install_mod_lsapi() {
   # Backup existing configuration
   if [ -f /etc/apache2/conf.d/lsapi.conf ]; then
     log_info "Backing up existing LSAPI configuration..."
-    backup_file "/etc/apache2/conf.d/lsapi.conf" || {
+    if ! backup_file "/etc/apache2/conf.d/lsapi.conf"; then
       log_error "Failed to backup LSAPI configuration"
       print_error "Failed to backup LSAPI configuration"
       return 1
-    }
-  }
+    fi
+  fi
 
   # Get server resources
   local CPU_CORES=$(nproc)
@@ -732,18 +745,6 @@ EOF
 
 # If the script is executed directly, run the main function
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
-  # Source required libraries (in case we're running standalone)
-  if [ -z "$LIB_DIR" ]; then
-    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    LIB_DIR="$(dirname "$SCRIPT_DIR")/lib"
-    source "$LIB_DIR/logging.sh"
-    source "$LIB_DIR/utils.sh"
-    source "$LIB_DIR/ui.sh"
-    
-    # Initialize logging
-    init_logging "/var/log/server-optimizer.log" "INFO"
-  fi
-  
   # Run the function
   install_mod_lsapi
 fi
