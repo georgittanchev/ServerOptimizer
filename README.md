@@ -153,6 +153,8 @@ INSTALL_REDIS=true
 CONFIGURE_REDIS_WP=true
 ```
 
+Based on extensive testing, I recommend not installing the Event MPM when using Engintron. They're not directly redundant, but their functional overlap can sometimes be counterproductive depending on your workload. In benchmarking tests using Apache Siege, performance actually degraded when Event MPM was enabled alongside Engintron.
+
 ## Available Modules
 
 1. **System Limits**: Configures kernel parameters and system limits for optimal performance.
