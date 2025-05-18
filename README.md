@@ -47,7 +47,6 @@ The script is designed to be highly configurable, extensible, and user-friendly,
 ```bash
 cd /root
 git clone https://github.com/georgittanchev/ServerOptimizer.git
-cd server-optimizer
 bash server-optimizer/install.sh
 ```
 
