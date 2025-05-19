@@ -49,6 +49,7 @@ The script is designed to be highly configurable, extensible, and user-friendly,
 ## Run without installing
 
 ```bash
+git clone https://github.com/georgittanchev/ServerOptimizer.git
 bash ServerOptimizer/optimize.sh
 ```
 
