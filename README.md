@@ -46,6 +46,12 @@ The script is designed to be highly configurable, extensible, and user-friendly,
 - Root access
 - WHM API access (most modules depend on WHM API for proper functionality)
 
+## Run without installing
+
+```bash
+bash ServerOptimizer/optimize.sh
+```
+
 ## Installation
 
 ### Quick Install
@@ -53,7 +59,7 @@ The script is designed to be highly configurable, extensible, and user-friendly,
 ```bash
 cd /root
 git clone https://github.com/georgittanchev/ServerOptimizer.git
-bash server-optimizer/install.sh
+bash ServerOptimizer/install.sh
 ```
 
 ### Manual Installation
