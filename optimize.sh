@@ -88,7 +88,7 @@ MODULE_FUNCTIONS=(
   "install_mod_lsapi"
   "configure_wordpress_redis"
   "direct_modify_cpanel_tweak_settings"
-  "implement_bad_bot_blocker"
+  "implement_web_server_bad_bot_blocker"
   "manage_swap"
   "optimize_imunify360"
   "switch_apache_mpm"
