@@ -35,7 +35,6 @@ calculate_redis_memory() {
   local server_type=$1
   local total_ram_mb
   
-  print_info "Calculating optimal Redis memory allocation..."
   log_info "Calculating Redis memory for server type: $server_type"
   
   # Get total system memory in MB
@@ -90,7 +89,7 @@ calculate_redis_memory() {
   log_info "Calculated Redis memory allocation: ${redis_memory_mb}MB"
   print_success "Calculated Redis memory: ${redis_memory_mb}MB"
   
-  echo "${redis_memory_mb}mb"
+  echo "${redis_memory_mb}"
 }
 
 # Function to install Remi repository
@@ -257,7 +256,7 @@ install_configure_redis() {
     echo "dbfilename dump.rdb"
     echo ""
     echo "# Memory Management"
-    echo "maxmemory $cache_size"
+    echo "maxmemory ${cache_size}mb"
     echo "maxmemory-policy allkeys-lru"
     echo "maxmemory-samples 10"
     echo ""
