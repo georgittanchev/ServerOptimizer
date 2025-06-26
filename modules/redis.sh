@@ -89,7 +89,8 @@ calculate_redis_memory() {
   log_info "Calculated Redis memory allocation: ${redis_memory_mb}MB"
   print_success "Calculated Redis memory: ${redis_memory_mb}MB"
   
-  echo "${redis_memory_mb}"
+  # Return with mb suffix like in Paste 1
+  echo "${redis_memory_mb}mb"
 }
 
 # Function to install Remi repository
@@ -134,18 +135,15 @@ install_configure_redis() {
   log_info "Starting Redis installation and configuration"
   
   # Get RHEL/CentOS release number
-  local release
+  local RELEASE
   if [ -z "$RELEASE" ]; then
-    release=$(rpm -q --qf %{version} $(rpm -q --whatprovides redhat-release) | cut -c 1)
-    if [ -z "$release" ]; then
+    RELEASE=$(rpm -q --qf %{version} $(rpm -q --whatprovides redhat-release) | cut -c 1)
+    if [ -z "$RELEASE" ]; then
       log_error "Could not determine OS release version"
       print_error "Could not determine OS release version"
       return 1
     fi
-    log_info "Detected OS release: $release"
-  else
-    release=$RELEASE
-    log_info "Using provided OS release: $release"
+    log_info "Detected OS release: $RELEASE"
   fi
   
   # If server_type is not provided, try to get it from a previous MySQL configuration
@@ -177,8 +175,9 @@ install_configure_redis() {
   print_info "Configuring Redis for server type: $server_type"
   
   # Calculate optimal Redis memory
-  local cache_size=$(calculate_redis_memory "$server_type")
-  log_info "Calculated Redis cache size: $cache_size"
+  local CACHE_SIZE=$(calculate_redis_memory "$server_type")
+  log_info "Calculated Redis cache size: $CACHE_SIZE"
+  print_info "Calculated Redis cache size: $CACHE_SIZE"
   
   # Check if Redis is already installed
   if ! systemctl is-active --quiet redis; then
@@ -187,7 +186,7 @@ install_configure_redis() {
        
     # Install Remi repo if needed
     if ! rpm -q remi-release > /dev/null; then
-      install_remi_repo "$release" || {
+      install_remi_repo "$RELEASE" || {
         log_error "Failed to install required Remi repository"
         print_error "Failed to install required Remi repository"
         return 1
@@ -203,11 +202,7 @@ install_configure_redis() {
     fi
     
     log_info "Enabling Redis service..."
-    if ! systemctl enable redis; then
-      log_error "Failed to enable Redis service"
-      print_error "Failed to enable Redis service"
-      return 1
-    fi
+    systemctl enable redis
     
     log_info "Starting Redis service..."
     if ! systemctl start redis; then
@@ -222,26 +217,24 @@ install_configure_redis() {
   
   # Locate Redis configuration file
   log_info "Locating Redis configuration file..."
-  local redis_conf
+  local REDIS_CONF
   if [ -f "/etc/redis/redis.conf" ]; then
-    redis_conf="/etc/redis/redis.conf"
+    REDIS_CONF="/etc/redis/redis.conf"
   elif [ -f "/etc/redis.conf" ]; then
-    redis_conf="/etc/redis.conf"
+    REDIS_CONF="/etc/redis.conf"
   else
     log_error "Redis configuration file not found"
     print_error "Redis configuration file not found"
     return 1
   fi
   
-  log_info "Using Redis configuration file: $redis_conf"
-  print_info "Using Redis configuration file: $redis_conf"
+  log_info "Using Redis configuration file: $REDIS_CONF"
+  print_info "Using Redis configuration file: $REDIS_CONF"
   
   # Backup original configuration
-  backup_file "$redis_conf" || {
-    log_error "Failed to backup Redis configuration"
-    print_error "Failed to backup Redis configuration"
-    return 1
-  }
+  local backup_file="${REDIS_CONF}.bak.$(date +%Y%m%d_%H%M%S)"
+  cp -f "$REDIS_CONF" "$backup_file"
+  log_info "Backed up configuration to: $backup_file"
   
   # Configure Redis with optimal settings
   log_info "Applying optimized Redis configuration..."
@@ -249,44 +242,89 @@ install_configure_redis() {
   
   {
     echo "# Redis configuration for $server_type"
-    echo "# Generated on $(date) by Server Optimizer"
+    echo "# Generated on $(date)"
+    echo ""
+    echo "# Network and Security"
+    echo "bind 127.0.0.1"
+    echo "port 6379"
+    echo "protected-mode yes"
     echo ""
     echo "# Directory Configuration"
     echo "dir /var/lib/redis"
     echo "dbfilename dump.rdb"
     echo ""
     echo "# Memory Management"
-    echo "maxmemory ${cache_size}mb"
+    echo "maxmemory $CACHE_SIZE"
     echo "maxmemory-policy allkeys-lru"
     echo "maxmemory-samples 10"
     echo ""
-    echo "# Performance Tuning"
+    echo "# Persistence"
+    echo "save 900 1"
+    echo "save 300 10"
+    echo "save 60 10000"
+    echo "stop-writes-on-bgsave-error yes"
+    echo "rdbcompression yes"
+    echo "rdbchecksum yes"
+    echo ""
+    echo "# Append only mode"
     echo "appendonly no"
     echo "appendfsync everysec"
     echo "no-appendfsync-on-rewrite yes"
+    echo "auto-aof-rewrite-percentage 100"
+    echo "auto-aof-rewrite-min-size 64mb"
+    echo ""
+    echo "# Performance Tuning"
     echo "activerehashing yes"
-    echo "rdbcompression yes"
-    echo "rdbchecksum yes"
+    echo "hz 10"
     echo ""
     echo "# Connection Management"
     echo "timeout 300"
     echo "tcp-keepalive 60"
+    echo "tcp-backlog 511"
     echo "maxclients 10000"
     echo ""
     echo "# Logging"
     echo "loglevel notice"
+    echo "logfile /var/log/redis/redis.log"
+    echo "syslog-enabled no"
+    echo ""
+    echo "# Database Configuration"
     echo "databases $REDIS_DB_LIMIT"
-  } > "$redis_conf"
+    echo ""
+    echo "# Slow log"
+    echo "slowlog-log-slower-than 10000"
+    echo "slowlog-max-len 128"
+    echo ""
+    echo "# Advanced config"
+    echo "hash-max-ziplist-entries 512"
+    echo "hash-max-ziplist-value 64"
+    echo "list-max-ziplist-entries 512"
+    echo "list-max-ziplist-value 64"
+    echo "set-max-intset-entries 512"
+    echo "zset-max-ziplist-entries 128"
+    echo "zset-max-ziplist-value 64"
+    echo "hll-sparse-max-bytes 3000"
+    echo "activerehashing yes"
+    echo "client-output-buffer-limit normal 0 0 0"
+    echo "client-output-buffer-limit slave 256mb 64mb 60"
+    echo "client-output-buffer-limit pubsub 32mb 8mb 60"
+  } > "$REDIS_CONF"
   
   # Ensure Redis directory exists with correct permissions
-  log_info "Setting up Redis data directory..."
+  log_info "Setting up Redis directories..."
   if [ ! -d "/var/lib/redis" ]; then
     mkdir -p /var/lib/redis
     log_info "Created Redis data directory"
   fi
   
-  chown redis:redis /var/lib/redis
+  if [ ! -d "/var/log/redis" ]; then
+    mkdir -p /var/log/redis
+    log_info "Created Redis log directory"
+  fi
+  
+  chown redis:redis /var/lib/redis /var/log/redis
   chmod 750 /var/lib/redis
+  chmod 755 /var/log/redis
   
   # Restart Redis to apply changes
   log_info "Restarting Redis service to apply changes..."
@@ -298,19 +336,8 @@ install_configure_redis() {
     
     # Restore backup
     log_warn "Restoring original configuration..."
-    if ! cp -f "${redis_conf}.bak."* "$redis_conf" 2>/dev/null; then
-      log_error "Failed to restore original Redis configuration"
-      print_error "Failed to restore original Redis configuration"
-    else
-      if ! systemctl restart redis; then
-        log_error "Failed to restart Redis with original configuration"
-        print_error "Failed to restart Redis with original configuration"
-      else
-        log_info "Redis restarted with original configuration"
-        print_info "Redis restarted with original configuration"
-      fi
-    fi
-    
+    mv -f "$backup_file" "$REDIS_CONF"
+    systemctl restart redis
     return 1
   fi
   
@@ -334,10 +361,8 @@ install_configure_redis() {
   if systemctl is-active --quiet redis; then
     log_info "Redis installation and configuration complete"
     print_success "Redis installation and configuration complete"
-    log_info "Cache Size: $cache_size"
-    print_info "Cache Size: $cache_size"
-    log_info "Configuration: $redis_conf"
-    print_info "Configuration: $redis_conf"
+    print_info "Cache Size: $CACHE_SIZE"
+    print_info "Configuration: $REDIS_CONF"
     
     if [ $install_errors -gt 0 ]; then
       log_warn "Warning: Some PHP extensions failed to install"
@@ -390,6 +415,6 @@ install_php_pecl_extension() {
 
 # If the script is executed directly, run the main function
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
-  # Run the function
-  install_configure_redis
+  # Run the function with the first argument as server type
+  install_configure_redis "$1"
 fi
